@@ -23,3 +23,4 @@ def  retrieve_memory(query:str):
    )    
    return  results["documents"][0]
 
+

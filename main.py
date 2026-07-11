@@ -5,9 +5,12 @@ from dotenv import load_dotenv
 from langgraph.graph import StateGraph,START,END, add_messages
 from typing import TypedDict, Annotated
 from langchain_groq import ChatGroq
-from langchain_core.messages import SystemMessage,HumanMessage
+from langchain_core.messages import SystemMessage,HumanMessage as HM
+from  memory  import retrieve_memory,store_memory
+
 class  ChatState(TypedDict):
        messages: Annotated[list, add_messages]
+       retrieved_memories: list[str]
 import json
 with open("persona.json", "r") as f:
     persona = json.load(f)
@@ -16,9 +19,55 @@ with open("persona.json", "r") as f:
 load_dotenv()
 
 def chat_node(state:ChatState):
-       messages = [SystemMessage(content=system_prompt)] + state['messages']
-       response =  llm.invoke(messages)
+
+       memories  = state['retrieved_memories']
+       recent_messages = state["messages"][-15:]
+       memory_text = "\n".join(f"- {m}" for m in memories) if memories else "None yet"
+       full_system_prompt = f"""{system_prompt}
+       What you remember about {persona['user_facts']['name']}:
+       {memory_text}"""
+       messages = [SystemMessage(content=full_system_prompt)] + recent_messages
+       response = llm.invoke(messages)
        return  {"messages":[response]}
+
+def  retrieve_memory__node(state:ChatState):
+       last_message = state['messages'][-1].content
+       memories = retrieve_memory(last_message)
+       return  {
+              "retrieved_memories": memories
+       }
+
+def extract_facts_node(state: ChatState):
+    # get last user message and AI reply
+    messages = state["messages"]
+    last_human = messages[-2].content  # second to last = user
+    last_ai = messages[-1].content     # last = AI reply
+    
+    extraction_prompt = f"""You are a memory extraction assistant.
+Look at this conversation exchange and extract ONE important fact about the user if present.
+Return ONLY valid JSON, nothing else.
+
+User said: "{last_human}"
+AI replied: "{last_ai}"
+
+If there is a clear fact about the user (preference, hobby, life detail, goal), return:
+{{"worth_saving": true, "fact": "user <fact here>"}}
+
+If nothing important, return:
+{{"worth_saving": false, "fact": ""}}"""
+
+    response = llm.invoke([HM(content=extraction_prompt)])
+    
+    import json
+    try:
+        result = json.loads(response.content)
+        if result["worth_saving"] and result["fact"]:
+            store_memory(result["fact"])
+            print(f"\n[Memory stored: {result['fact']}]")
+    except:
+        pass  # if LLM returns bad JSON, just skip
+    
+    return {}
 
 system_prompt = f"""Your name is {persona['name']}.
 Your personality: {persona['personality']}.
@@ -27,19 +76,24 @@ a {persona['user_facts']['age']} year old {persona['user_facts']['gender']}.
 Stay in character always."""
 
 
-llm =  ChatGroq( model="qwen/qwen3-32b")       
+llm = ChatGroq(model="llama-3.3-70b-versatile")   
 graph = StateGraph(ChatState)
 graph.add_node("chat_node", chat_node)
-graph.add_edge(START, "chat_node")
-graph.add_edge("chat_node", END)
+graph.add_node("retrieve_memory", retrieve_memory__node)
+graph.add_node("extract_facts", extract_facts_node)
+graph.add_edge(START, "retrieve_memory")
+graph.add_edge("retrieve_memory", "chat_node")
+graph.add_edge("chat_node", "extract_facts")
+graph.add_edge("extract_facts", END)
 personaa = graph.compile()
 if __name__ == "__main__":
-       state = {"messages": []}
+       state = {"messages": [], "retrieved_memories": []}
        while  True:
               user_input  =  input("You: ")
               if user_input.lower() in ["exit", "quit"]:
                         break
-              state['messages'].append(HumanMessage(content=user_input))
-              response =  personaa.invoke(state)
-              print(f"{persona['name']}: {response['messages'][-1].content}")
+              state['messages'].append(HM(content=user_input))
+              state  =  personaa.invoke(state)
+              print(f"{persona['name']}: {state ['messages'][-1].content}")
+       
               
