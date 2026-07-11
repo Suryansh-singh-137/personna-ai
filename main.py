@@ -6,7 +6,7 @@ from langgraph.graph import StateGraph,START,END, add_messages
 from typing import TypedDict, Annotated
 from langchain_groq import ChatGroq
 from langchain_core.messages import SystemMessage,HumanMessage as HM
-from  memory  import retrieve_memory,store_memory
+from  memory  import retrieve_memory,store_memory, retrieve_episodes,store_episode,summarize_conversation
 
 class  ChatState(TypedDict):
        messages: Annotated[list, add_messages]
@@ -32,9 +32,10 @@ def chat_node(state:ChatState):
 
 def  retrieve_memory__node(state:ChatState):
        last_message = state['messages'][-1].content
-       memories = retrieve_memory(last_message)
+       facts = retrieve_memory(last_message)
+       episodes  = retrieve_episodes(last_message)
        return  {
-              "retrieved_memories": memories
+              "retrieved_memories": facts + episodes
        }
 
 def extract_facts_node(state: ChatState):
@@ -91,7 +92,11 @@ if __name__ == "__main__":
        while  True:
               user_input  =  input("You: ")
               if user_input.lower() in ["exit", "quit"]:
-                        break
+                        if state['messages']:
+                            summary = summarize_conversation(state['messages'], llm)
+                            store_episode(summary)
+                            print(f"\n[Episode stored: {summary}]")
+                            break
               state['messages'].append(HM(content=user_input))
               state  =  personaa.invoke(state)
               print(f"{persona['name']}: {state ['messages'][-1].content}")
