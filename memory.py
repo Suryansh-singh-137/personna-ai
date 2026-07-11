@@ -27,11 +27,11 @@ def  retrieve_memory(query:str):
    )    
    return  results["documents"][0]
 def store_episode(summary: str):
-   collection  =  init_episodic_memory()
+   collection = init_episodic_memory()
    collection.add(
          documents=[summary],
-         metadata = {"timestamp": datetime.now().isoformat(), "source": "episode"},
-         ids = [uuid.uuid4().hex]
+         metadatas=[{"timestamp": datetime.now().isoformat(), "source": "episode"}],
+         ids=[uuid.uuid4().hex]
    )
 def   retrieve_episodes(query: str):
    collection  =  init_episodic_memory()
