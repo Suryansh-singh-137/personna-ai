@@ -45,12 +45,12 @@ def   retrieve_episodes(query: str):
 def summarize_conversation(messages: list, llm) -> str:
     conversation_text = ""
     for msg in messages:
-        role = "User" if isinstance(msg, HumanMessage) else "Suzy"
+        role = "User" if isinstance(msg, HumanMessage) else "sidhzi"
         conversation_text += f"{role}: {msg.content}\n"
     
     prompt = f"""Summarize this conversation in 3-4 sentences. 
 Focus on: what topics were discussed, what the user's mood seemed like, 
-any important things they shared. Write it as a memory from Suzy's perspective.
+any important things they shared. Write it as a memory from sidhzi's perspective.
 
 Conversation:
 {conversation_text}
@@ -114,7 +114,7 @@ def reflection_and_clean(llm):
 def consolidate_and_update(messages: list, llm):
     conversation_text = ""
     for  msg in  messages:
-        role = "User" if isinstance(msg, HumanMessage) else "Suzy"
+        role = "User" if isinstance(msg, HumanMessage) else "sidhzi"
         conversation_text += f"{role}: {msg.content}\n"
     try:
         with open("user_proflie_with_previous_sessions.txt", "r") as f:
