@@ -104,3 +104,37 @@ if __name__ == "__main__":
     results = retrieve_memory("what do you know about the user")
     for r in results:
         print(r)   
+
+
+def consolidate_and_update(messages: list, llm):
+    conversation_text = ""
+    for  msg in  messages:
+        role = "User" if isinstance(msg, HumanMessage) else "Suzy"
+        conversation_text += f"{role}: {msg.content}\n"
+    try:
+        with open("user_proflie_with_previous_sessions.txt", "r") as f:
+            existing_profile  =  f.read()
+    except FileNotFoundError:
+        existing_profile = ""
+    prompt = f"""You are a memory consolidation assistant.you have two jobs:
+1. Read the following conversation between Suzy and the user, and summarize it into a few key facts about the user.
+2. Compare these new facts with the existing profile of the user, and update the profile with any new information. If there are contradictions, keep the most recent information.
+existing profile:
+{existing_profile}
+conversation:
+{conversation_text}
+return  only  valid JSON of the updated profile, nothing else. Example:
+{{
+  "new_facts": ["fact 1", "fact 2"],
+  "updated_profile": "A coherent 4-6 sentence paragraph about the user merging old and new information about the whole converation"
+}}"""
+    reponse  =  llm.invoke([HumanMessage(content=prompt)])
+    try:
+        result = json.loads(reponse.content)
+        for fact in result.get("new_facts", []):
+            store_memory(fact)
+        with open("user_proflie_with_previous_sessions.json", "w") as f:    
+             f.write(result["updated_profile"])
+    except json.JSONDecodeError:
+        print("Error decoding JSON from LLM response. Response was:")
+        print(reponse.content)         

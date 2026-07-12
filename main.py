@@ -14,7 +14,8 @@ class  ChatState(TypedDict):
 import json
 with open("persona.json", "r") as f:
     persona = json.load(f)
-
+with open("user_proflie_with_previous_sessions.txt", "r") as f:
+    user_profile = f.read()
 
 load_dotenv()
 
@@ -38,54 +39,23 @@ def  retrieve_memory__node(state:ChatState):
               "retrieved_memories": facts + episodes
        }
 
-def extract_facts_node(state: ChatState):
-    # get last user message and AI reply
-    messages = state["messages"]
-    last_human = messages[-2].content  # second to last = user
-    last_ai = messages[-1].content     # last = AI reply
-    
-    extraction_prompt = f"""You are a memory extraction assistant.
-Look at this conversation exchange and extract ONE important fact about the user if present.
-Return ONLY valid JSON, nothing else.
-
-User said: "{last_human}"
-AI replied: "{last_ai}"
-
-If there is a clear fact about the user (preference, hobby, life detail, goal), return:
-{{"worth_saving": true, "fact": "user <fact here>"}}
-
-If nothing important, return:
-{{"worth_saving": false, "fact": ""}}"""
-
-    response = llm.invoke([HM(content=extraction_prompt)])
-    
-    import json
-    try:
-        result = json.loads(response.content)
-        if result["worth_saving"] and result["fact"]:
-            store_memory(result["fact"])
-            print(f"\n[Memory stored: {result['fact']}]")
-    except:
-        pass  # if LLM returns bad JSON, just skip
-    
-    return {}
-
 system_prompt = f"""Your name is {persona['name']}.
 Your personality: {persona['personality']}.
-You are talking to {persona['user_facts']['name']}, 
-a {persona['user_facts']['age']} year old {persona['user_facts']['gender']}.
+
+What you know about {persona['user_facts']['name']}:
+{user_profile}
+
 Stay in character always."""
+
 
 
 llm = ChatGroq(model="llama-3.3-70b-versatile")   
 graph = StateGraph(ChatState)
 graph.add_node("chat_node", chat_node)
 graph.add_node("retrieve_memory", retrieve_memory__node)
-graph.add_node("extract_facts", extract_facts_node)
 graph.add_edge(START, "retrieve_memory")
 graph.add_edge("retrieve_memory", "chat_node")
-graph.add_edge("chat_node", "extract_facts")
-graph.add_edge("extract_facts", END)
+graph.add_edge("chat_node", END)
 personaa = graph.compile()
 if __name__ == "__main__":
     state = {"messages": [], "retrieved_memories": []}
