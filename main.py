@@ -6,7 +6,7 @@ from langgraph.graph import StateGraph,START,END, add_messages
 from typing import TypedDict, Annotated
 from langchain_groq import ChatGroq
 from langchain_core.messages import SystemMessage,HumanMessage as HM
-from  memory  import retrieve_memory,store_memory, retrieve_episodes,store_episode,summarize_conversation
+from  memory  import retrieve_memory,store_memory, retrieve_episodes,store_episode,summarize_conversation,reflection_and_clean
 
 class  ChatState(TypedDict):
        messages: Annotated[list, add_messages]
@@ -88,17 +88,21 @@ graph.add_edge("chat_node", "extract_facts")
 graph.add_edge("extract_facts", END)
 personaa = graph.compile()
 if __name__ == "__main__":
-       state = {"messages": [], "retrieved_memories": []}
-       while  True:
-              user_input  =  input("You: ")
-              if user_input.lower() in ["exit", "quit"]:
-                        if state['messages']:
-                            summary = summarize_conversation(state['messages'], llm)
-                            store_episode(summary)
-                            print(f"\n[Episode stored: {summary}]")
-                            break
-              state['messages'].append(HM(content=user_input))
-              state  =  personaa.invoke(state)
-              print(f"{persona['name']}: {state ['messages'][-1].content}")
-       
-              
+    state = {"messages": [], "retrieved_memories": []}
+
+    while True:
+        user_input = input("You: ")
+
+        if user_input.lower() in ["exit", "quit"]:
+            if state["messages"]:
+                summary = summarize_conversation(state["messages"], llm)
+                store_episode(summary)
+                print(f"\n[Episode stored: {summary}]")
+            print("Exiting chat. Goodbye! WITH MEMORY cleanup")
+            reflection_and_clean(llm)
+            break
+
+        state["messages"].append(HM(content=user_input))
+        state = personaa.invoke(state)
+
+        print(f"{persona['name']}: {state['messages'][-1].content}")

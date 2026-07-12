@@ -1,5 +1,6 @@
 import chromadb
 import  uuid
+import json
 from datetime import datetime
 from langchain_core.messages import SystemMessage,HumanMessage
 def  init_memory():
@@ -58,3 +59,48 @@ Summary:"""
     
     response = llm.invoke([HumanMessage(content=prompt)])
     return response.content
+def reflection_and_clean(llm):
+    collection = init_memory()
+
+    all_data = collection.get()
+    all_memories = all_data["documents"]
+    ids = all_data["ids"]
+    
+    if not all_memories:
+        return "No memories to reflect on."
+    
+    fact_text  = ""
+    for fact  in  all_memories:
+        fact_text += "-"+fact+"\n"
+    prompt = f"""You are a memory cleanup assistant.
+    Here are all the facts stored about a user:
+
+    {fact_text}
+
+    Your job:
+    1. Remove exact duplicates
+    2. Merge facts that say the same thing differently  
+    3. Resolve contradictions (keep the more specific/recent sounding one)
+    4. Return a clean deduplicated list
+
+    Return ONLY a JSON array of strings, nothing else. Example:
+    ["user's name is Suryansh", "user loves cricket", "user studies CS"]"""   
+    reponse = llm.invoke([HumanMessage(content=prompt)])
+    try :
+        cleaned_facts  =  json.loads(reponse.content)
+    except json.JSONDecodeError:
+        print("Error decoding JSON from LLM response. Response was:")
+        print(reponse.content)
+        return []
+    collection.delete(ids=ids) # Clear existing memories
+    for fact in cleaned_facts:
+        collection.add(
+            documents=[fact],
+            metadatas=[{"source": "reflection"}],
+            ids=[uuid.uuid4().hex]
+        )    
+ 
+if __name__ == "__main__":
+    results = retrieve_memory("what do you know about the user")
+    for r in results:
+        print(r)   
