@@ -10,3 +10,4 @@ wheels/
 .venv
 .env
 memory_store
+user_proflie_with_previous_sessions.txt

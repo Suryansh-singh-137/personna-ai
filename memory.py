@@ -59,6 +59,8 @@ Summary:"""
     
     response = llm.invoke([HumanMessage(content=prompt)])
     return response.content
+
+
 def reflection_and_clean(llm):
     collection = init_memory()
 
@@ -79,15 +81,22 @@ def reflection_and_clean(llm):
 
     Your job:
     1. Remove exact duplicates
-    2. Merge facts that say the same thing differently  
-    3. Resolve contradictions (keep the more specific/recent sounding one)
-    4. Return a clean deduplicated list
+    2. Merge facts that say the same thing differently
+    3. Resolve contradictions, keep most specific/recent
 
-    Return ONLY a JSON array of strings, nothing else. Example:
-    ["user's name is Suryansh", "user loves cricket", "user studies CS"]"""   
+    Respond in exactly this format:
+
+    <facts>
+    cleaned fact 1
+    cleaned fact 2
+    cleaned fact 3
+    </facts>""" 
     reponse = llm.invoke([HumanMessage(content=prompt)])
     try :
-        cleaned_facts  =  json.loads(reponse.content)
+        raw = reponse.content
+        cleaned_facts_block = raw.split("<facts>")[1].split("</facts>")[0].strip()
+        cleaned_facts = [f.strip() for f in cleaned_facts_block.split("\n") if f.strip()]
+   
     except json.JSONDecodeError:
         print("Error decoding JSON from LLM response. Response was:")
         print(reponse.content)
@@ -99,11 +108,7 @@ def reflection_and_clean(llm):
             metadatas=[{"source": "reflection"}],
             ids=[uuid.uuid4().hex]
         )    
- 
-if __name__ == "__main__":
-    results = retrieve_memory("what do you know about the user")
-    for r in results:
-        print(r)   
+
 
 
 def consolidate_and_update(messages: list, llm):
@@ -116,25 +121,41 @@ def consolidate_and_update(messages: list, llm):
             existing_profile  =  f.read()
     except FileNotFoundError:
         existing_profile = ""
-    prompt = f"""You are a memory consolidation assistant.you have two jobs:
-1. Read the following conversation between Suzy and the user, and summarize it into a few key facts about the user.
-2. Compare these new facts with the existing profile of the user, and update the profile with any new information. If there are contradictions, keep the most recent information.
-existing profile:
-{existing_profile}
-conversation:
-{conversation_text}
-return  only  valid JSON of the updated profile, nothing else. Example:
-{{
-  "new_facts": ["fact 1", "fact 2"],
-  "updated_profile": "A coherent 4-6 sentence paragraph about the user merging old and new information about the whole converation"
-}}"""
+    prompt = f"""You are a memory consolidation assistant. You have two jobs:
+    1. Read the conversation and extract new facts about the user
+    2. Update the existing profile with new information
+
+    Existing profile:
+    {existing_profile}
+
+    Conversation:
+    {conversation_text}
+
+    Respond in exactly this format, nothing else:
+
+    <facts>
+    fact 1
+    fact 2
+    fact 3
+    </facts>
+
+    <profile>
+    A coherent 4-6 sentence paragraph about the user merging old and new information.
+    </profile>"""
     reponse  =  llm.invoke([HumanMessage(content=prompt)])
     try:
-        result = json.loads(reponse.content)
-        for fact in result.get("new_facts", []):
+        raw = reponse.content
+        # parse facts
+        facts_block = raw.split("<facts>")[1].split("</facts>")[0].strip()
+        new_facts = [f.strip() for f in facts_block.split("\n") if f.strip()]
+
+        # parse profile
+        profile = raw.split("<profile>")[1].split("</profile>")[0].strip()
+
+        for fact in new_facts:
             store_memory(fact)
         with open("user_proflie_with_previous_sessions.txt", "w") as f:    
-             f.write(result["updated_profile"])
+              f.write(profile)
     except json.JSONDecodeError:
         print("Error decoding JSON from LLM response. Response was:")
         print(reponse.content)         
