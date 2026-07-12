@@ -133,7 +133,7 @@ return  only  valid JSON of the updated profile, nothing else. Example:
         result = json.loads(reponse.content)
         for fact in result.get("new_facts", []):
             store_memory(fact)
-        with open("user_proflie_with_previous_sessions.json", "w") as f:    
+        with open("user_proflie_with_previous_sessions.txt", "w") as f:    
              f.write(result["updated_profile"])
     except json.JSONDecodeError:
         print("Error decoding JSON from LLM response. Response was:")

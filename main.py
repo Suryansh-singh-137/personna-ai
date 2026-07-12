@@ -6,7 +6,7 @@ from langgraph.graph import StateGraph,START,END, add_messages
 from typing import TypedDict, Annotated
 from langchain_groq import ChatGroq
 from langchain_core.messages import SystemMessage,HumanMessage as HM
-from  memory  import retrieve_memory,store_memory, retrieve_episodes,store_episode,summarize_conversation,reflection_and_clean
+from  memory  import retrieve_memory,store_memory, retrieve_episodes,store_episode,summarize_conversation,reflection_and_clean, consolidate_and_update
 
 class  ChatState(TypedDict):
        messages: Annotated[list, add_messages]
@@ -14,8 +14,11 @@ class  ChatState(TypedDict):
 import json
 with open("persona.json", "r") as f:
     persona = json.load(f)
-with open("user_proflie_with_previous_sessions.txt", "r") as f:
-    user_profile = f.read()
+try:
+    with open("user_proflie_with_previous_sessions.txt", "r") as f:
+        user_profile = f.read()
+except FileNotFoundError:
+    user_profile = "No information about user yet."
 
 load_dotenv()
 
@@ -64,12 +67,21 @@ if __name__ == "__main__":
         user_input = input("You: ")
 
         if user_input.lower() in ["exit", "quit"]:
-            if state["messages"]:
+            if len(state["messages"]) > 2:
+                print("\n[Saving session...]")
+
                 summary = summarize_conversation(state["messages"], llm)
                 store_episode(summary)
-                print(f"\n[Episode stored: {summary}]")
-            print("Exiting chat. Goodbye! WITH MEMORY cleanup")
-            reflection_and_clean(llm)
+                print("[Episode stored]")
+
+                from memory import consolidate_and_update
+                consolidate_and_update(state["messages"], llm)
+                print("[Profile updated]")
+
+                reflection_and_clean(llm)
+                print("[Memory cleaned]")
+
+            print("Goodbye!")
             break
 
         state["messages"].append(HM(content=user_input))
