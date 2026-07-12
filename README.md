@@ -16,6 +16,13 @@ Persona AI is an attempt to fix that. Not with a massive context window, not wit
 
 ---
 
+## The Architecture
+<img width="4546" height="4392" alt="image" src="https://github.com/user-attachments/assets/37add944-514e-4449-b654-ced15bf82ef4" />
+
+
+
+---
+
 ## How the Memory Works
 
 There are four layers, each doing a different job:
@@ -152,11 +159,7 @@ Type `quit` or `exit` to end a session. Memory saves automatically on exit.
 
 ---
 
-## The Architecture
-<img width="4546" height="4392" alt="image" src="https://github.com/user-attachments/assets/37add944-514e-4449-b654-ced15bf82ef4" />
 
-
----
 
 ## What Makes This Different from a Basic Chatbot
 
