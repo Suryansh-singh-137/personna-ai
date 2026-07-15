@@ -1,6 +1,6 @@
 def main():
     print("Hello from personna-ai!")
-
+import time
 from dotenv import load_dotenv
 from langgraph.graph import StateGraph,START,END, add_messages
 from typing import TypedDict, Annotated
@@ -51,8 +51,10 @@ What you know about {persona['user_facts']['name']}:
 Stay in character always."""
 
 
-
-llm = ChatGroq(model="llama-3.3-70b-versatile")   
+llm = ChatGroq(
+    model="llama-3.3-70b-versatile",
+    streaming=True
+)
 graph = StateGraph(ChatState)
 graph.add_node("chat_node", chat_node)
 graph.add_node("retrieve_memory", retrieve_memory__node)
@@ -84,18 +86,28 @@ if __name__ == "__main__":
             print("Goodbye!")
             break
 
-        state["messages"].append(HM(content=user_input))
-        state = personaa.invoke(state)
+state["messages"].append(HM(content=user_input))
 
-        print(f"{persona['name']}: ", end="", flush=True)
-        for  chunk in  personaa.stream(
-             state ,
-             stream_node = "messages",
-             version = "v2"
+final_state = None
 
-        ):
-             if chunk["type"]== "messages":
-                      msg , metadata = chunk["data"]
-                      if  msg.content:
-                            print(msg.content, end="", flush=True)
-        print()  # New line after the response
+print(f"{persona['name']}: ", end="", flush=True)
+
+for chunk in personaa.stream(
+    state,
+    stream_mode=["messages", "values"],
+    version="v2",
+):
+    if chunk["type"] == "messages":
+        msg, metadata = chunk["data"]
+        if msg.content:
+            for ch in msg.content:
+                print(ch, end="", flush=True)
+                time.sleep(0.02)
+
+    elif chunk["type"] == "values":
+        final_state = chunk["data"]
+
+print()
+
+if final_state is not None:
+    state = final_state
