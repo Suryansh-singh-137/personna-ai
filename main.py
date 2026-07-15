@@ -69,45 +69,32 @@ if __name__ == "__main__":
         user_input = input("You: ")
 
         if user_input.lower() in ["exit", "quit"]:
-            if len(state["messages"]) > 2:
-                print("\n[Saving session...]")
-
-                summary = summarize_conversation(state["messages"], llm)
-                store_episode(summary)
-                print("[Episode stored]")
-
-                from memory import consolidate_and_update
-                consolidate_and_update(state["messages"], llm)
-                print("[Profile updated]")
-
-                reflection_and_clean(llm)
-                print("[Memory cleaned]")
-
-            print("Goodbye!")
+            ...
             break
 
-state["messages"].append(HM(content=user_input))
+        state["messages"].append(HM(content=user_input))
 
-final_state = None
+        final_state = None
 
-print(f"{persona['name']}: ", end="", flush=True)
+        print(f"{persona['name']}: ", end="", flush=True)
 
-for chunk in personaa.stream(
-    state,
-    stream_mode=["messages", "values"],
-    version="v2",
-):
-    if chunk["type"] == "messages":
-        msg, metadata = chunk["data"]
-        if msg.content:
-            for ch in msg.content:
-                print(ch, end="", flush=True)
-                time.sleep(0.02)
+        for chunk in personaa.stream(
+            state,
+            stream_mode=["messages", "values"],
+            version="v2",
+        ):
+            if chunk["type"] == "messages":
+                msg, metadata = chunk["data"]
 
-    elif chunk["type"] == "values":
-        final_state = chunk["data"]
+                if msg.content:
+                    for ch in msg.content:
+                        print(ch, end="", flush=True)
+                        time.sleep(0.02)
 
-print()
+            elif chunk["type"] == "values":
+                final_state = chunk["data"]
 
-if final_state is not None:
-    state = final_state
+        print()
+
+        if final_state is not None:
+            state = final_state
