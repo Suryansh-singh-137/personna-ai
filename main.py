@@ -87,4 +87,15 @@ if __name__ == "__main__":
         state["messages"].append(HM(content=user_input))
         state = personaa.invoke(state)
 
-        print(f"{persona['name']}: {state['messages'][-1].content}")
+        print(f"{persona['name']}: ", end="", flush=True)
+        for  chunk in  personaa.stream(
+             state ,
+             stream_node = "messages",
+             version = "v2"
+
+        ):
+             if chunk["type"]== "messages":
+                      msg , metadata = chunk["data"]
+                      if  msg.content:
+                            print(msg.content, end="", flush=True)
+        print()  # New line after the response
