@@ -2,6 +2,7 @@ def main():
     print("Hello from personna-ai!")
 import time
 from dotenv import load_dotenv
+from voice import speak
 from langgraph.graph import StateGraph,START,END, add_messages
 from typing import TypedDict, Annotated
 from langchain_groq import ChatGroq
@@ -98,3 +99,5 @@ if __name__ == "__main__":
 
         if final_state is not None:
             state = final_state
+            full_response = state["messages"][-1].content
+            speak(full_response)
